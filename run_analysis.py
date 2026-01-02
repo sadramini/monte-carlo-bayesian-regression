@@ -47,9 +47,15 @@ def main():
     # ------------------------------------------------------------------
     # 6–8. Run multiple chains (main experiment)
     # ------------------------------------------------------------------
+    import time
+
     n_chains = 4
     chains = []
-    base_seed = 123
+
+    # Randomize MCMC seeds per run (while keeping data fixed)
+    base_seed = int(time.time())
+    print(f"Using base random seed: {base_seed}")
+
 
     t0_global = time.perf_counter()
     for m in range(n_chains):
