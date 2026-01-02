@@ -1,236 +1,145 @@
-# Monte Carlo Bayesian Regression — California Housing
+# Monte Carlo Bayesian Regression
 
-This project implements Bayesian linear regression for the California Housing dataset using a
-**Random‑Walk Metropolis–Hastings (MCMC) sampler**, with full diagnostics and reproducible outputs.
+This project implements a **Bayesian Linear Regression model** estimated
+using a **Random-Walk Metropolis--Hastings MCMC sampler**. The workflow
+is fully reproducible and organized as a modular research-style
+pipeline, including posterior inference, convergence diagnostics, Monte
+Carlo error assessment, and posterior predictive evaluation.
 
-The current version of the repository reflects the **original, validated version of the project code**, after reverting
-experimental tuning changes that did not improve convergence or ESS performance. The project now prioritizes:
+The primary application is the **California Housing dataset**, and the
+project also includes comparison with a classical OLS baseline.
 
-- correctness and reproducibility
-- faithfulness to the original implementation
-- transparency of diagnostics and results
+------------------------------------------------------------------------
 
-All results are generated programmatically and written to:
+## 🎯 Project Goals
 
-```
-results/plots/
-results/tables/
-```
+-   Implement Bayesian linear regression from first principles
+-   Use a hand‑written MCMC sampler (Random‑Walk Metropolis--Hastings)
+-   Run multiple independent Markov chains
+-   Evaluate convergence and sampler efficiency
+-   Quantify Monte Carlo Standard Error (MCSE)
+-   Perform posterior predictive checks
+-   Compare against OLS regression as a frequentist benchmark
+-   Produce clean, reproducible research outputs (tables + plots)
 
-so users can review, reproduce, and interpret the full posterior analysis.
+This repository is structured as a transparent and extensible **learning
+and research project**, not just a script that prints results.
 
----
+------------------------------------------------------------------------
 
-## 🧠 Project Summary
+## 🧠 Model Overview
 
-This project performs:
+The model assumes the standard Gaussian linear regression form
 
-- Bayesian linear regression with standardized predictors
-- Gaussian likelihood
-- Normal prior on coefficients
-- Inverse‑Gamma prior on variance
-- MCMC sampling using component‑wise Random‑Walk Metropolis
-- Four independent chains
-- Full posterior diagnostics
-- Posterior predictive evaluation
+\[ y = X`\beta `{=tex}+ `\varepsilon `{=tex},
+`\quad `{=tex}`\varepsilon `{=tex}`\sim `{=tex}`\mathcal `{=tex}N(0,
+`\sigma`{=tex}\^2 I). \]
 
-The intent of the project is **educational and methodological** — to explicitly implement and study MCMC sampling behavior,
-rather than rely on black‑box Bayesian software.
+Priors:
 
----
+-   (`\beta `{=tex}`\sim `{=tex}`\mathcal `{=tex}N(0,`\tau`{=tex}\^2 I))
+-   (`\sigma`{=tex}\^2 `\sim `{=tex}`\text{Inverse‑Gamma}`{=tex}(a,b))
 
-## 📦 Repository Structure
+The posterior is explored using a **Random‑Walk MH sampler** with:
 
-```
-bayes_regression/
-│   data.py              # dataset loading & preprocessing
-│   model.py             # priors + log posterior
-│   mcmc.py              # Random‑Walk Metropolis sampler
-│   diagnostics.py       # ESS, R‑hat, Geweke, ACF
-│   plots.py             # trace, running mean, ACF plots
-│   predictive.py        # posterior predictive sampling
-│   __init__.py
-run_analysis.py          # main pipeline script
-results/
-│   plots/               # generated figures
-│   tables/              # generated CSV outputs
-data/                    # optional user dataset storage
-README.md
-```
+-   multiple chains
+-   chain‑level adaptation settings
+-   diagnostics stored to disk
 
-The statistical implementation matches the original research notebook, but organized into a modular Python project.
+------------------------------------------------------------------------
 
----
+## 🧩 Project Structure
 
-## ▶️ How to Run the Project
+    .
+    ├── data.py              # Load & preprocess dataset
+    ├── model.py             # Likelihood + prior + posterior log‑density
+    ├── mcmc.py              # RW‑Metropolis sampler + chain manager
+    ├── diagnostics.py       # R-hat, ESS, MCSE, trace utilities
+    ├── plots.py             # Trace, density, pair & PPC plots
+    ├── predictive.py        # Posterior predictive simulation
+    ├── run_analysis.py      # Main end‑to‑end pipeline
+    └── results/
+        ├── plots/           # Saved figures
+        └── tables/          # CSV summaries and diagnostics
 
-Clone the repository:
+Each module is intentionally independent and reusable. The pipeline
+script (`run_analysis.py`) orchestrates the full experiment.
 
-```bash
-git clone https://github.com/sadramini/monte-carlo-bayesian-regression.git
-cd monte-carlo-bayesian-regression
-```
+------------------------------------------------------------------------
 
-(Optional) create a virtual environment:
+## 🚀 Workflow
 
-```bash
-python -m venv venv
-source venv/bin/activate       # macOS / Linux
-# or
-venv\Scripts\Activate          # Windows
-```
+Run the main analysis pipeline:
 
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Run the full analysis:
-
-```bash
+``` bash
 python run_analysis.py
 ```
 
-This will automatically:
+This performs:
 
-1. load & standardize the dataset  
-2. run multiple MCMC chains  
-3. compute posterior diagnostics  
-4. export trace and ACF plots  
-5. compute posterior predictive distributions  
-6. save outputs to `results/`
+1.  Load & preprocess data
+2.  Initialize chains
+3.  Run MCMC sampling
+4.  Produce posterior summary tables
+5.  Compute convergence diagnostics
+6.  Evaluate MCSE
+7.  Generate posterior predictive samples
+8.  Compare results with OLS regression
+9.  Save figures & tables to `results/`
 
----
+All outputs are written to disk for full reproducibility.
 
-## 📊 Generated Outputs
+------------------------------------------------------------------------
 
-### Results Tables (`results/tables/`)
+## 📊 Outputs
 
-- `posterior_summary.csv`
-- `diagnostics.csv`
-- `mcse.csv`
-- `posterior_predictive_test.csv`
-- `ols_estimates.csv`
+The pipeline generates:
+
+### Tables (`results/tables/`)
+
+-   posterior_summary.csv
+-   diagnostics_rhat_ess_mcse.csv
+-   chain_acceptance_rates.csv
+-   ols_comparison.csv
 
 ### Plots (`results/plots/`)
 
-- traceplots for each parameter
-- running means per chain
-- ACF curves
-- log‑variance diagnostics
+-   trace plots
+-   marginal posterior densities
+-   chain comparison plots
+-   posterior predictive checks
+-   OLS vs posterior distributions
 
-These correspond to the analysis workflow in the original project.
+These are suitable for reports, coursework, or research documentation.
 
----
+------------------------------------------------------------------------
 
-## 🔎 About Refinements & Revisions
+## 🧪 Reproducibility Philosophy
 
-During development, several sampler refinements were tested:
+The `main` branch contains only:
 
-- increased iterations
-- alternative burn‑in schedules
-- adjusted proposal scales
-- block‑update proposals for β
+-   validated sampler settings
+-   stable diagnostic workflows
+-   interpretable experiment outputs
 
-After evaluation, these modifications **did not improve convergence quality or ESS performance**
-for this specific model and dataset.
+Experimental tuning work is intentionally kept out of `main` to preserve
+a clean reference implementation.
 
-To preserve:
+------------------------------------------------------------------------
 
-- interpretability
-- correctness
-- reproducibility
-- comparability with the original results
+## 🧭 Possible Extensions
 
-the project has been restored to the **validated, original sampler configuration**.
+Ideas for future experimentation:
 
-The repository now reflects:
+-   Alternative priors (Laplace, Horseshoe, ridge‑type shrinkage)
+-   Hierarchical regression
+-   Comparison with NUTS (Stan / PyMC) as a gold‑standard reference
+-   More advanced MH tuning strategies
+-   Automatic step‑size adaptation
 
-> the final and recommended version of the analysis
+------------------------------------------------------------------------
 
-Further tuning experiments may be explored in the future, but are intentionally excluded from the main branch
-to keep the primary pipeline stable and consistent.
+## 🙌 Author
 
----
-
-## 🧪 Convergence Diagnostics
-
-The project reports:
-
-- split‑R̂
-- ESS (min & mean across chains)
-- Geweke z‑scores
-- autocorrelation decay
-- trace and running mean stability
-
-These diagnostics confirmed that:
-
-- chains reach stationarity
-- parameters are well‑identified
-- posterior estimates are stable
-- predictive behavior is reasonable
-
-Some parameters mix more slowly (expected with RW‑MH), but performance remains acceptable for inference.
-
----
-
-## 📌 Reproducibility Philosophy
-
-This project is structured to:
-
-- separate **code**, **results**, and **data**
-- expose every computational step
-- encourage transparent MCMC analysis
-- make replication straightforward
-
-Nothing in the statistical model has been altered — only reorganized for clarity and maintainability.
-
----
-
-## 📄 License (MIT License)
-
-This project is released under the MIT License:
-
-```
-MIT License
-
-Copyright (c) 2026
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-If you use this work in academic or research contexts, citation is appreciated.
-
----
-
-## 🤝 Acknowledgements
-
-Dataset: California Housing — Scikit‑Learn  
-Methods: Bayesian Linear Regression + MCMC  
-Diagnostics: R̂, ESS, Geweke, ACF
-
----
-
-## 🙌 Author Notes
-
-This repository was organized to preserve the **original analysis and results**
-while making the project cleaner, easier to reproduce, and suitable for sharing publicly.
-
-Suggestions, critique, and extension ideas are always welcome.
+This project is developed by **Sadra** as a hands‑on exploration of
+Bayesian inference, MCMC sampling, and reproducible research pipelines.
