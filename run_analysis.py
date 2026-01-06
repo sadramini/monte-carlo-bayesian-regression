@@ -2,6 +2,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import time
+import matplotlib.pyplot as plt
+
 
 from bayes_regression import (
     load_and_prepare_data,
@@ -56,7 +58,6 @@ def main():
     base_seed = int(time.time())
     print(f"Using base random seed: {base_seed}")
 
-
     t0_global = time.perf_counter()
     for m in range(n_chains):
         sd = base_seed + m
@@ -87,9 +88,10 @@ def main():
         )
 
     # ------------------------------------------------------------------
-    # Folder setup for results
+    # Folder setup for results (ANCHOR TO SCRIPT DIRECTORY)
     # ------------------------------------------------------------------
-    results_dir = Path("results")
+    base_dir = Path(__file__).resolve().parent
+    results_dir = base_dir / "results"
     plots_dir = results_dir / "plots"
     tables_dir = results_dir / "tables"
     plots_dir.mkdir(parents=True, exist_ok=True)
@@ -104,6 +106,22 @@ def main():
     diag_df = build_diagnostics_table(chains, param_names)
     diag_df.to_csv(tables_dir / "diagnostics.csv", index=False)
     print(diag_df)
+
+    # --- NEW: ESS per second for main experiment ----------------------
+    total_time = t1_global - t0_global
+
+    ess_eff_rows = []
+    for _, row in diag_df.iterrows():
+        ess_eff_rows.append(
+            {
+                "param": row["param"],
+                "ESS_per_second": row["ESS (mean over chains)"] / total_time,
+            }
+        )
+
+    ess_eff_df = pd.DataFrame(ess_eff_rows)
+    ess_eff_df.to_csv(tables_dir / "ess_per_second.csv", index=False)
+    # ------------------------------------------------------------------
 
     # MCSE (using ESS (mean over chains), like in the notebook)
     mcse_rows = []
@@ -131,6 +149,80 @@ def main():
         max_lag=60,
         out_path=plots_dir / "acf_selected_params.png",
     )
+
+    # ------------------------------------------------------------------
+    # NEW: Proposal variance sensitivity experiment (beta_step grid)
+    # ------------------------------------------------------------------
+    beta_steps = [0.005, 0.01, 0.02, 0.05]
+    sensitivity_rows = []
+
+    for beta_step_sens in beta_steps:
+        print(f"\nRunning sensitivity experiment: beta_step = {beta_step_sens}")
+        sens_chains = []
+
+        t0 = time.perf_counter()
+        for m in range(n_chains):
+            sd = base_seed + m
+            out = run_mh_chain(
+                X_train,
+                y_train,
+                n_iter=n_iter,
+                burn=burn,
+                beta_step=beta_step_sens,
+                log_sigma2_step=log_sigma2_step,
+                tau2=tau2,
+                a0=a0,
+                b0=b0,
+                seed=sd,
+            )
+            sens_chains.append(out)
+
+        t1 = time.perf_counter()
+        elapsed = t1 - t0
+
+        diag_df_sens = build_diagnostics_table(sens_chains, param_names)
+
+        for _, row in diag_df_sens.iterrows():
+            sensitivity_rows.append(
+                {
+                    "beta_step": beta_step_sens,
+                    "param": row["param"],
+                    "Rhat": row["Rhat"],
+                    "ESS_mean": row["ESS (mean over chains)"],
+                    "ESS_per_second": row["ESS (mean over chains)"] / elapsed,
+                }
+            )
+
+
+    sens_df = pd.DataFrame(sensitivity_rows)
+    sens_df.to_csv(tables_dir / "sensitivity.csv", index=False)
+    # ------------------------------------------------------------------
+    # ---------------------------------------------------------
+    # Plot: ESS/sec vs beta_step (tuning efficiency curve)
+    # ---------------------------------------------------------
+    # We group by beta_step and parameter so each parameter
+    # gets its own efficiency curve across proposal values.
+
+    fig, ax = plt.subplots()
+
+    for param, g in sens_df.groupby("param"):
+        g_sorted = g.sort_values("beta_step")
+        ax.plot(
+            g_sorted["beta_step"],
+            g_sorted["ESS_per_second"],
+            marker="o",
+            label=param,
+        )
+
+    ax.set_xlabel("beta_step")
+    ax.set_ylabel("ESS per second")
+    ax.set_title("Sampler efficiency across proposal scales\n(ESS/sec vs beta_step)")
+    ax.legend()
+    fig.tight_layout()
+
+    fig.savefig(plots_dir / "ess_per_second_vs_beta_step.png", dpi=200)
+    plt.close(fig)
+    # ---------------------------------------------------------
 
     # ------------------------------------------------------------------
     # 13–14. Combine chains + posterior summaries
