@@ -43,7 +43,10 @@ def run_mh_chain(
     betas = np.zeros((n_iter, p_local))
     log_sigma2s = np.zeros(n_iter)
 
+    # Initial log-posterior and safety check
     current_lp = log_posterior(beta, log_sigma2, X, y, tau2=tau2, a0=a0, b0=b0)
+    if not np.isfinite(current_lp):
+        raise RuntimeError("Initial log-posterior is not finite.")
 
     accepts_beta = 0
     accepts_sig = 0
@@ -53,7 +56,9 @@ def run_mh_chain(
         for j in range(p_local):
             beta_prop = beta.copy()
             beta_prop[j] = beta_prop[j] + rng.normal(0.0, beta_step)
-            prop_lp = log_posterior(beta_prop, log_sigma2, X, y, tau2=tau2, a0=a0, b0=b0)
+            prop_lp = log_posterior(
+                beta_prop, log_sigma2, X, y, tau2=tau2, a0=a0, b0=b0
+            )
             log_alpha = prop_lp - current_lp
 
             if np.log(rng.uniform()) < log_alpha:
@@ -63,7 +68,9 @@ def run_mh_chain(
 
         # --- update log(sigma^2) ---
         log_sigma2_prop = log_sigma2 + rng.normal(0.0, log_sigma2_step)
-        prop_lp = log_posterior(beta, log_sigma2_prop, X, y, tau2=tau2, a0=a0, b0=b0)
+        prop_lp = log_posterior(
+            beta, log_sigma2_prop, X, y, tau2=tau2, a0=a0, b0=b0
+        )
         log_alpha = prop_lp - current_lp
 
         if np.log(rng.uniform()) < log_alpha:
