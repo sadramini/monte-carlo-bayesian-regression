@@ -1,40 +1,32 @@
 
 # Monte‑Carlo Bayesian Regression — California Housing
 
-This project implements a full **Bayesian linear regression** analysis of the California Housing dataset using a
-**Random‑Walk Metropolis–Hastings (MCMC) sampler**. The goal of the project is to provide a transparent, educational,
-and reproducible implementation of Bayesian inference where the sampling process, diagnostics, and results can be fully
-inspected and replicated.
+This project implements a complete **Bayesian linear regression workflow** for the California Housing dataset, estimated using a **Random‑Walk Metropolis–Hastings (MCMC) sampler**. The goal is not only to fit a model, but to make the full inference process **transparent, reproducible, and methodologically rigorous**, with diagnostics, efficiency analysis, and posterior evaluation performed programmatically.
 
-The project is based on the original research analysis and has been reorganized into a clean Python package structure,
-while preserving the **same model, priors, sampler logic, and interpretation workflow**.
+All results produced by the pipeline are saved to:
 
-All analysis outputs are generated programmatically and written to:
-
-```text
+```
 results/plots/
 results/tables/
 ```
 
-This ensures that anyone running the project can regenerate the exact same artifacts, inspect diagnostics, and evaluate
-posterior results in a structured and reproducible way.
+so the full analysis can be replicated and inspected.
 
 ---
 
-## 🎯 Project Objectives
+## 🎯 Project Goals
 
-This project aims to:
+This project demonstrates an end‑to‑end Bayesian workflow:
 
-- implement Bayesian linear regression from first principles
-- sample from the posterior using Random‑Walk Metropolis
-- study convergence behavior across multiple chains
-- evaluate sampler efficiency using diagnostics (ESS, ESS/sec, R-hat, Geweke, ACF)
-- tune the proposal variance via a sensitivity experiment
-- compute posterior summaries and predictive distributions
-- make the full workflow reproducible and reviewable
+- define the likelihood and priors explicitly  
+- implement a component‑wise Random‑Walk Metropolis sampler  
+- run multiple independent chains  
+- assess convergence and stability using standard diagnostics  
+- quantify sampler efficiency using ESS and ESS/sec  
+- study how proposal variance affects performance  
+- compute posterior summaries and predictive uncertainty
 
-The project is intended primarily as a **methodological and learning‑focused implementation**, rather than an automated
-black‑box Bayesian modeling tool.
+The design emphasizes **clarity, reproducibility, and interpretability** over black‑box automation.
 
 ---
 
@@ -42,312 +34,174 @@ black‑box Bayesian modeling tool.
 
 Likelihood
 
-\(
-y \mid X, \beta, \sigma^2 \sim \mathcal N(X\beta,\ \sigma^2 I)
-\)
+\[
+y \mid X,\beta,\sigma^2 \sim \mathcal N(X\beta,\sigma^2 I)
+\]
 
 Priors
 
-\(
-\beta \sim \mathcal N(0,\ \tau^2 I)
-\)
+\[
+\beta \sim \mathcal N(0,\tau^2 I),
+\quad
+\sigma^2 \sim \text{Inv‑Gamma}(a_0,b_0)
+\]
 
-\(
-\sigma^2 \sim \text{Inv‑Gamma}(a_0,\ b_0)
-\)
+Inference is performed in:
 
-Sampling is performed in:
+- regression coefficients \(\beta\)
+- log‑variance parameter \(\log\sigma^2\)
 
-- \( \beta \) (regression coefficients)
-- \( \log\sigma^2 \) (log‑variance parameter)
-
-using a **Random‑Walk Metropolis–Hastings algorithm**.
-
-The transformation to \(\log\sigma^2\) includes the proper Jacobian adjustment, consistent with the original formulation.
+using a **Random‑Walk Metropolis–Hastings sampler** with Jacobian adjustment for the log‑variance transformation.
 
 Default hyperparameters:
 
 | Parameter | Value |
-|----------|------:|
-| \( \tau^2 \) | 10 |
-| \( a_0 \) | 2 |
-| \( b_0 \) | 1 |
-
-These values match the original project analysis.
+|--------:|-----:|
+| \(\tau^2\) | 10 |
+| \(a_0\) | 2 |
+| \(b_0\) | 1 |
 
 ---
 
-## 🧩 Repository Structure
+## 📁 Repository Structure
 
-```text
-bayes_regression/
-│   data.py              # dataset loading & preprocessing
-│   model.py             # priors + log posterior
-│   mcmc.py              # Random‑Walk Metropolis sampler
-│   diagnostics.py       # ESS, split‑Rhat, Geweke, ACF
-│   plots.py             # trace, running mean, ACF, tuning plots
-│   predictive.py        # posterior predictive sampling
-│   __init__.py
-run_analysis.py          # main analysis pipeline
-results/
-│   plots/               # generated figures
-│   tables/              # generated CSV outputs
-data/                    # optional workspace for user datasets
-README.md
 ```
-
-The codebase is organized to separate:
-
-- modeling and inference logic
-- diagnostics and visualization
-- execution pipeline
-- generated outputs
-
-while still reproducing the original computational workflow.
+bayes_regression/
+│ data.py            # dataset loading & preprocessing
+│ model.py           # priors + log posterior
+│ mcmc.py            # Metropolis–Hastings sampler
+│ diagnostics.py     # ESS, R-hat, Geweke, ACF
+│ plots.py           # plotting utilities
+│ predictive.py      # posterior predictive sampling
+│ __init__.py
+run_analysis.py      # analysis pipeline entry point
+results/
+  plots/
+  tables/
+```
 
 ---
 
 ## ▶️ Running the Analysis
 
-Clone the repository
-
-```bash
-git clone https://github.com/sadramini/monte-carlo-bayesian-regression.git
-cd monte-carlo-bayesian-regression
 ```
-
-(Optional) create a virtual environment
-
-```bash
-python -m venv venv
-source venv/bin/activate        # macOS / Linux
-# or
-venv\Scripts\Activate         # Windows
-```
-
-Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-Run the full pipeline
-
-```bash
 python run_analysis.py
 ```
 
-The script will automatically:
+The script automatically:
 
-1. load and standardize the California Housing dataset  
-2. fit an OLS baseline model  
-3. run multiple independent MCMC chains  
-4. compute convergence diagnostics (ESS, R-hat, Geweke, ACF)  
-5. compute Monte Carlo standard errors (MCSE)  
-6. run a proposal variance sensitivity experiment over multiple `beta_step` values  
-7. generate a tuning plot of ESS/sec vs `beta_step`  
-8. generate posterior summaries  
-9. evaluate posterior predictive performance  
-10. export plots and tables to `results/`
-
-No manual steps are required beyond running the script.
+1) loads and standardizes the dataset  
+2) fits an OLS baseline for comparison  
+3) runs **four independent MCMC chains**  
+4) computes diagnostics (ESS, split‑Rhat, Geweke, ACF)  
+5) computes MCSE from ESS  
+6) measures total sampling time  
+7) runs a **proposal‑variance sensitivity study** across several `beta_step` values  
+8) summarizes posterior parameters  
+9) evaluates posterior predictive performance on a held‑out test set  
+10) exports all figures and tables
 
 ---
 
-## 📊 Output Artifacts
+## 📊 Outputs
 
-### Tables — saved in `results/tables/`
+### Tables (saved in `results/tables/`)
 
-- `posterior_summary.csv`
-- `diagnostics.csv`
-- `mcse.csv`
-- `ess_per_second.csv`              — ESS per second for the main experiment
-- `sensitivity.csv`                 — proposal variance sensitivity (beta_step grid)
-- `posterior_predictive_test.csv`
-- `ols_estimates.csv`
+- `posterior_summary.csv` — posterior means, medians, credible intervals, sign probabilities  
+- `diagnostics.csv` — ESS (per parameter, across chains), R‑hat, Geweke statistics  
+- `mcse.csv` — Monte‑Carlo standard error using mean‑ESS  
+- `ess_per_second.csv` — efficiency of the **main experiment** (ESS / wall‑clock‑time)  
+- `sensitivity.csv` — ESS, R‑hat, and ESS/sec across a grid of proposal scales  
+- `posterior_predictive_test.csv` — predictive means & intervals on test data  
+- `ols_estimates.csv` — OLS coefficients on standardized predictors
 
-These files include:
-
-- posterior means and credible intervals  
-- effective sample size & R‑hat values  
-- Geweke Z‑statistics  
-- Monte‑Carlo standard errors  
-- ESS per second (efficiency) for each parameter  
-- efficiency comparison across different proposal scales  
-- predictive interval results on the test set  
+Together these files give a reproducible, quantitative view of posterior accuracy, chain behavior, and sampler efficiency.
 
 ---
 
-### Plots — saved in `results/plots/`
+### Plots (saved in `results/plots/`)
 
-- traceplots for each parameter and chain
-- running mean stabilization plots
+- parameter traceplots (per chain)
+- running‑mean stabilization plots
 - ACF plots for selected parameters
-- log‑variance trace diagnostics
-- `ess_per_second_vs_beta_step.png` — tuning curve: ESS/sec vs `beta_step` for each parameter
+- tuning curve: **ESS/sec vs `beta_step`**
 
-These visual diagnostics allow evaluation of:
+The tuning curve visualizes how proposal variance affects performance:
 
-- stationarity
-- chain agreement
-- autocorrelation structure
-- burn‑in sufficiency
-- how sampler efficiency changes with the proposal variance
+- very small steps → slow random‑walk exploration  
+- very large steps → high rejection rate  
+- intermediate region → maximum ESS/sec  
 
----
-
-## 🔧 MCMC Tuning & Efficiency
-
-The sampler uses a **component-wise Random‑Walk Metropolis** scheme that updates:
-
-- all regression coefficients \(\beta_j\) one at a time
-- then the log‑variance parameter \(\log\sigma^2\)
-
-For the main experiment, we:
-
-- run 4 independent chains
-- compute ESS and R-hat per parameter
-- compute **ESS per second**, using total wall‑clock time, to measure efficiency
-
-### ESS per second
-
-The file `ess_per_second.csv` reports, for each parameter:
-
-- `ESS_per_second = ESS_mean / total_sampling_time`
-
-This is a direct measure of how many *effectively independent* draws per second the sampler produces, and makes it easy to compare efficiency across parameters.
-
-### Proposal variance sensitivity experiment
-
-To avoid ad‑hoc tuning, the script performs a dedicated sensitivity study over a grid of proposal scales:
-
-```python
-beta_steps = [0.005, 0.01, 0.02, 0.05]
-```
-
-For each value in this grid, the pipeline:
-
-1. reruns the MCMC chains with that `beta_step`
-2. recomputes ESS, R-hat and ESS/sec
-3. stores the results in `sensitivity.csv`
-
-This allows us to empirically study the trade‑off between:
-
-- very small steps (slow random walk, high autocorrelation)
-- very large steps (high rejection rate)
-- an intermediate “sweet spot” where ESS/sec is maximized
-
-### Tuning plot
-
-The figure `ess_per_second_vs_beta_step.png` visualizes the sensitivity results:
-
-- x‑axis: `beta_step`
-- y‑axis: `ESS_per_second`
-- one line per parameter
-
-The resulting curves exhibit the expected **U‑shape** for Random‑Walk Metropolis:
-
-- small `beta_step` → inefficient exploration (low ESS/sec)  
-- moderate `beta_step` (≈ 0.01–0.02) → highest efficiency  
-- large `beta_step` (0.05) → efficiency drops again due to more rejections  
-
-Based on this analysis, the main experiment uses a proposal scale in the high‑efficiency region (`beta_step = 0.02`), balancing good mixing with robust convergence diagnostics.
+This confirms that the chosen proposal scale lies in the **high‑efficiency regime**.
 
 ---
 
-## 🧪 Convergence & Reproducibility Notes
+## 🔧 MCMC Implementation & Diagnostics
 
-The current repository reflects the **validated version of the sampler and workflow** used in the original analysis.
+The sampler performs:
 
-Experimental modifications were explored during development, including:
+- sequential updates of each \(\beta_j\)
+- a separate update of \(\log\sigma^2\)
 
-- alternative burn‑in schedules  
-- different proposal scales (`beta_step`)  
-- additional iterations  
-- block‑update proposals for \(\beta\)
+For each experiment, we evaluate:
 
-After evaluating diagnostics and posterior stability, the project was intentionally restored to the configuration that:
+- split‑Rhat (chain agreement)
+- ESS (total and per‑parameter)
+- Geweke early–late z‑scores
+- ACF structure
+- MCSE
+- ESS/sec (efficiency per second)
 
-- produced consistent and interpretable inference  
-- aligned with the original methodology  
-- maintained reproducibility  
+Efficiency is computed as:
 
-The goal of the repository is to provide a **clear, faithful, and transparent implementation**, rather than maximize sampling aggressiveness or efficiency at the expense of methodological clarity.
+\[
+\text{ESS/sec} =
+\frac{\text{ESS (mean over chains)}}{\text{total sampling time}}
+\]
+
+This allows comparing tuning choices on a **computationally‑meaningful scale**.
+
+To avoid ad‑hoc tuning, the pipeline runs a **proposal‑variance sensitivity experiment** over a grid of `beta_step` values and reports efficiency for each.
 
 ---
 
 ## 🧭 Interpretation Summary
 
-Posterior estimates exhibit expected behavior:
+Across chains we observe:
 
-- income (`MedInc`) — strong positive association  
-- rooms (`AveRooms`) — negative association  
-- bedrooms (`AveBedrms`) — positive effect  
-- population — weak effect  
-- intercept and variance — stable across chains  
+- R‑hat ≈ 1 → good chain agreement  
+- strong ESS for most parameters  
+- slower but valid mixing for correlated predictors  
+- stable posterior means and intervals  
+- predictive intervals consistent with model uncertainty  
 
-Moderate autocorrelation in some coefficients is typical for RW‑MH in correlated predictor spaces, but convergence metrics (ESS, R‑hat, Geweke) and ESS/sec indicate that inference remains valid and reasonably efficient.
+The tuning experiment exhibits the expected RW‑MH pattern:
 
----
+- inefficient at very small step sizes  
+- optimal efficiency near the chosen proposal scale  
+- efficiency drop at overly‑large steps  
 
-## 📌 Reproducibility Philosophy
-
-This project follows a research‑oriented structure:
-
-- code is version‑controlled  
-- results are generated programmatically  
-- data handling is explicit and isolated  
-- diagnostics are exported for inspection  
-
-This allows:
-
-- independent verification  
-- rerunning under new conditions  
-- extending analysis cleanly  
-
-without modifying core model code.
+which supports the final sampler configuration.
 
 ---
 
-## 📄 License (MIT License)
+## 🧑‍🔬 Reproducibility Philosophy
 
-This project is distributed under the MIT License:
+The project is structured so that:
 
-```text
-MIT License
+- all results are generated automatically
+- no manual tuning steps are hidden
+- diagnostics are exportable and reviewable
+- experiments can be rerun under new settings
 
-Copyright (c) 2026
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+The focus is on **methodological transparency** rather than automation.
 
 ---
 
-## 🙌 Closing Notes
+## 📄 License
 
-This repository was structured to make the analysis:
+MIT License — see repository file for details.
 
-- clear  
-- reproducible  
-- interpretable  
-- academically presentable  
+---
 
-while preserving the **original modeling decisions and inference process**.
-
-Feedback, extensions, or replication attempts are welcome.
+If you extend or adapt this workflow for new datasets or models, contributions and replication results are welcome.
