@@ -1,3 +1,4 @@
+
 # Monte‑Carlo Bayesian Regression — California Housing
 
 This project implements a full **Bayesian linear regression** analysis of the California Housing dataset using a
@@ -10,7 +11,7 @@ while preserving the **same model, priors, sampler logic, and interpretation wor
 
 All analysis outputs are generated programmatically and written to:
 
-```
+```text
 results/plots/
 results/tables/
 ```
@@ -27,7 +28,8 @@ This project aims to:
 - implement Bayesian linear regression from first principles
 - sample from the posterior using Random‑Walk Metropolis
 - study convergence behavior across multiple chains
-- evaluate sampler efficiency using diagnostics
+- evaluate sampler efficiency using diagnostics (ESS, ESS/sec, R-hat, Geweke, ACF)
+- tune the proposal variance via a sensitivity experiment
 - compute posterior summaries and predictive distributions
 - make the full workflow reproducible and reviewable
 
@@ -77,13 +79,13 @@ These values match the original project analysis.
 
 ## 🧩 Repository Structure
 
-```
+```text
 bayes_regression/
 │   data.py              # dataset loading & preprocessing
 │   model.py             # priors + log posterior
 │   mcmc.py              # Random‑Walk Metropolis sampler
 │   diagnostics.py       # ESS, split‑Rhat, Geweke, ACF
-│   plots.py             # trace, running mean, ACF plots
+│   plots.py             # trace, running mean, ACF, tuning plots
 │   predictive.py        # posterior predictive sampling
 │   __init__.py
 run_analysis.py          # main analysis pipeline
@@ -120,7 +122,7 @@ cd monte-carlo-bayesian-regression
 python -m venv venv
 source venv/bin/activate        # macOS / Linux
 # or
-venv\Scripts\Activate           # Windows
+venv\Scripts\Activate         # Windows
 ```
 
 Install dependencies
@@ -137,13 +139,16 @@ python run_analysis.py
 
 The script will automatically:
 
-1) load and standardize the California Housing dataset  
-2) fit an OLS baseline model  
-3) run multiple independent MCMC chains  
-4) compute convergence diagnostics  
-5) generate posterior summaries  
-6) evaluate posterior predictive performance  
-7) export plots and tables to `results/`
+1. load and standardize the California Housing dataset  
+2. fit an OLS baseline model  
+3. run multiple independent MCMC chains  
+4. compute convergence diagnostics (ESS, R-hat, Geweke, ACF)  
+5. compute Monte Carlo standard errors (MCSE)  
+6. run a proposal variance sensitivity experiment over multiple `beta_step` values  
+7. generate a tuning plot of ESS/sec vs `beta_step`  
+8. generate posterior summaries  
+9. evaluate posterior predictive performance  
+10. export plots and tables to `results/`
 
 No manual steps are required beyond running the script.
 
@@ -156,16 +161,20 @@ No manual steps are required beyond running the script.
 - `posterior_summary.csv`
 - `diagnostics.csv`
 - `mcse.csv`
+- `ess_per_second.csv`              — ESS per second for the main experiment
+- `sensitivity.csv`                 — proposal variance sensitivity (beta_step grid)
 - `posterior_predictive_test.csv`
 - `ols_estimates.csv`
 
 These files include:
 
-- posterior means and credible intervals
-- effective sample size & R‑hat values
-- Geweke Z‑statistics
-- Monte‑Carlo standard errors
-- predictive interval results
+- posterior means and credible intervals  
+- effective sample size & R‑hat values  
+- Geweke Z‑statistics  
+- Monte‑Carlo standard errors  
+- ESS per second (efficiency) for each parameter  
+- efficiency comparison across different proposal scales  
+- predictive interval results on the test set  
 
 ---
 
@@ -175,6 +184,7 @@ These files include:
 - running mean stabilization plots
 - ACF plots for selected parameters
 - log‑variance trace diagnostics
+- `ess_per_second_vs_beta_step.png` — tuning curve: ESS/sec vs `beta_step` for each parameter
 
 These visual diagnostics allow evaluation of:
 
@@ -182,6 +192,66 @@ These visual diagnostics allow evaluation of:
 - chain agreement
 - autocorrelation structure
 - burn‑in sufficiency
+- how sampler efficiency changes with the proposal variance
+
+---
+
+## 🔧 MCMC Tuning & Efficiency
+
+The sampler uses a **component-wise Random‑Walk Metropolis** scheme that updates:
+
+- all regression coefficients \(\beta_j\) one at a time
+- then the log‑variance parameter \(\log\sigma^2\)
+
+For the main experiment, we:
+
+- run 4 independent chains
+- compute ESS and R-hat per parameter
+- compute **ESS per second**, using total wall‑clock time, to measure efficiency
+
+### ESS per second
+
+The file `ess_per_second.csv` reports, for each parameter:
+
+- `ESS_per_second = ESS_mean / total_sampling_time`
+
+This is a direct measure of how many *effectively independent* draws per second the sampler produces, and makes it easy to compare efficiency across parameters.
+
+### Proposal variance sensitivity experiment
+
+To avoid ad‑hoc tuning, the script performs a dedicated sensitivity study over a grid of proposal scales:
+
+```python
+beta_steps = [0.005, 0.01, 0.02, 0.05]
+```
+
+For each value in this grid, the pipeline:
+
+1. reruns the MCMC chains with that `beta_step`
+2. recomputes ESS, R-hat and ESS/sec
+3. stores the results in `sensitivity.csv`
+
+This allows us to empirically study the trade‑off between:
+
+- very small steps (slow random walk, high autocorrelation)
+- very large steps (high rejection rate)
+- an intermediate “sweet spot” where ESS/sec is maximized
+
+### Tuning plot
+
+The figure `ess_per_second_vs_beta_step.png` visualizes the sensitivity results:
+
+- x‑axis: `beta_step`
+- y‑axis: `ESS_per_second`
+- one line per parameter
+
+The resulting curves exhibit the expected **U‑shape** for Random‑Walk Metropolis:
+
+- small `beta_step` → inefficient exploration (low ESS/sec)  
+- moderate `beta_step` (≈ 0.01–0.02) → highest efficiency  
+- large `beta_step` (0.05) → efficiency drops again due to more rejections  
+
+Based on this analysis, the main experiment uses a proposal scale in the high‑efficiency region (`beta_step = 0.02`), balancing good mixing with robust convergence diagnostics.
 
 ---
 
@@ -191,16 +261,16 @@ The current repository reflects the **validated version of the sampler and workf
 
 Experimental modifications were explored during development, including:
 
-- alternative burn‑in schedules
-- different proposal scales
-- additional iterations
-- block‑update proposals for β
+- alternative burn‑in schedules  
+- different proposal scales (`beta_step`)  
+- additional iterations  
+- block‑update proposals for \(\beta\)
 
 After evaluating diagnostics and posterior stability, the project was intentionally restored to the configuration that:
 
-- produced consistent and interpretable inference
-- aligned with the original methodology
-- maintained reproducibility
+- produced consistent and interpretable inference  
+- aligned with the original methodology  
+- maintained reproducibility  
 
 The goal of the repository is to provide a **clear, faithful, and transparent implementation**, rather than maximize sampling aggressiveness or efficiency at the expense of methodological clarity.
 
@@ -210,13 +280,13 @@ The goal of the repository is to provide a **clear, faithful, and transparent im
 
 Posterior estimates exhibit expected behavior:
 
-- income (`MedInc`) — strong positive association
-- rooms (`AveRooms`) — negative association
-- bedrooms (`AveBedrms`) — positive effect
-- population — weak effect
-- intercept and variance — stable across chains
+- income (`MedInc`) — strong positive association  
+- rooms (`AveRooms`) — negative association  
+- bedrooms (`AveBedrms`) — positive effect  
+- population — weak effect  
+- intercept and variance — stable across chains  
 
-Moderate autocorrelation in some coefficients is typical for RW‑MH in correlated predictor spaces, but convergence metrics indicate that inference remains valid.
+Moderate autocorrelation in some coefficients is typical for RW‑MH in correlated predictor spaces, but convergence metrics (ESS, R‑hat, Geweke) and ESS/sec indicate that inference remains valid and reasonably efficient.
 
 ---
 
@@ -224,16 +294,16 @@ Moderate autocorrelation in some coefficients is typical for RW‑MH in correlat
 
 This project follows a research‑oriented structure:
 
-- code is version‑controlled
-- results are generated programmatically
-- data handling is explicit and isolated
-- diagnostics are exported for inspection
+- code is version‑controlled  
+- results are generated programmatically  
+- data handling is explicit and isolated  
+- diagnostics are exported for inspection  
 
 This allows:
 
-- independent verification
-- rerunning under new conditions
-- extending analysis cleanly
+- independent verification  
+- rerunning under new conditions  
+- extending analysis cleanly  
 
 without modifying core model code.
 
@@ -243,7 +313,7 @@ without modifying core model code.
 
 This project is distributed under the MIT License:
 
-```
+```text
 MIT License
 
 Copyright (c) 2026
@@ -273,12 +343,11 @@ SOFTWARE.
 
 This repository was structured to make the analysis:
 
-- clear
-- reproducible
-- interpretable
-- academically presentable
+- clear  
+- reproducible  
+- interpretable  
+- academically presentable  
 
 while preserving the **original modeling decisions and inference process**.
 
 Feedback, extensions, or replication attempts are welcome.
-
